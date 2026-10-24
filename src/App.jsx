@@ -125,7 +125,7 @@ export default function App() {
   const fileInputRef = useRef(null);
 
   // Backend API URL from environment variable or default local
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '/api';
 
   // Brand Rules state with localStorage persistence
   const [rules, setRules] = useState(() => {
