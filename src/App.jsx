@@ -124,7 +124,7 @@ export default function App() {
   const [editingRuleData, setEditingRuleData] = useState({});
   const fileInputRef = useRef(null);
 
-  // Backend API URL from environment variable or default local
+  // Backend API URL from environment variable or default relative service path
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || '/api';
 
   // Brand Rules state with localStorage persistence
@@ -196,7 +196,7 @@ export default function App() {
     }, 4000);
   };
 
-  // Real backend Gemini content check (Text)
+  // Backend content check (Text)
   const handleRunCheck = async () => {
     if (!content.trim()) return;
     setIsChecking(true);
@@ -233,15 +233,15 @@ export default function App() {
       }));
 
       setWarnings(formattedFindings);
-      setModelUsed(data.model_used || 'Gemini');
+      setModelUsed(data.model_used || 'Preflight Engine');
       setCurrentReviewId(data.review_id);
       setHasScanned(true);
-      showNotification(`Saved review ${data.review_id}: ${formattedFindings.length} findings detected by ${data.model_used || 'Gemini'}.`);
+      showNotification(`Saved review ${data.review_id}: ${formattedFindings.length} findings detected.`);
     } catch (err) {
-      console.error('Backend Gemini check failed:', err);
+      console.error('Backend compliance check failed:', err);
       let errorMsg = err.message || 'Failed to connect to backend server.';
       if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
-        errorMsg = `Cannot connect to Preflight backend at ${BACKEND_URL}. Ensure the FastAPI server is running with 'uvicorn main:app --reload'.`;
+        errorMsg = `Cannot connect to Preflight backend at ${BACKEND_URL}. Ensure the server is running.`;
       }
       setApiError(errorMsg);
       setHasScanned(false);
@@ -280,7 +280,7 @@ export default function App() {
     setImagePreviewUrl(objectUrl);
   };
 
-  // Image Creative Brand Compliance Inspection with Gemini
+  // Image Creative Brand Compliance Inspection
   const handleCheckImageCreative = async () => {
     if (!imageFile) {
       setImageError('Please select a creative image first.');
@@ -309,7 +309,7 @@ export default function App() {
       setImageFindings(data.findings || []);
       setHasScannedImage(true);
       setCurrentReviewId(data.review_id);
-      setModelUsed(data.model_used || 'Gemini');
+      setModelUsed(data.model_used || 'Preflight Engine');
       showNotification(`Creative audit complete: ${data.findings ? data.findings.length : 0} findings recorded.`);
     } catch (err) {
       console.error('Image compliance check failed:', err);
@@ -364,7 +364,7 @@ export default function App() {
       setWarnings(mapped);
       setHasScanned(true);
     }
-    setModelUsed(rev.model_used || 'Gemini');
+    setModelUsed(rev.model_used || 'Preflight Engine');
     setCurrentReviewId(rev.id);
     setActiveTab('dashboard');
     showNotification(`Loaded review ${rev.id} into dashboard.`);
@@ -607,7 +607,7 @@ export default function App() {
               <span className="font-semibold text-base tracking-tight text-slate-900 flex items-center gap-1.5">
                 Preflight
                 <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 tracking-wide">
-                  Gemini
+                  AI AUDITOR
                 </span>
               </span>
             </div>
@@ -697,14 +697,14 @@ export default function App() {
             <div className="flex items-center justify-between text-xs font-medium text-slate-700 mb-1">
               <span className="flex items-center gap-1.5">
                 <Cpu className="w-3.5 h-3.5 text-blue-600" />
-                Gemini Multimodal
+                Preflight Engine
               </span>
               <span className="text-emerald-600 flex items-center gap-1 font-semibold text-[11px]">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Live
               </span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Audits marketing copy and creative images against approved rules.
+              Audits marketing copy and creative images against approved compliance rules.
             </p>
           </div>
         </div>
@@ -753,7 +753,7 @@ export default function App() {
                   Check your content before publishing.
                 </h1>
                 <p className="text-sm text-slate-500 mt-1">
-                  Scan copy or visual creatives against approved brand tone, banned words, and claims rules using Gemini.
+                  Scan copy or visual creatives against approved brand tone, banned words, and claims rules.
                 </p>
               </div>
 
@@ -869,7 +869,7 @@ export default function App() {
                       {isChecking ? (
                         <>
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Checking with Gemini...</span>
+                          <span>Checking content...</span>
                         </>
                       ) : (
                         <>
@@ -882,7 +882,7 @@ export default function App() {
                 </>
               )}
 
-              {/* MODE 2: CREATIVE IMAGE CHECKER (Part 2 Requirement) */}
+              {/* MODE 2: CREATIVE IMAGE CHECKER */}
               {dashboardMode === 'image' && (
                 <div className="space-y-4">
                   <div>
@@ -913,7 +913,7 @@ export default function App() {
                       <p className="text-xs text-slate-400 mt-1">
                         {imageFile 
                           ? `${(imageFile.size / (1024 * 1024)).toFixed(2)} MB &bull; Ready for brand compliance audit`
-                          : 'Checks visible text, claims, tone, and visual brand rules using Gemini'}
+                          : 'Checks visible text, claims, tone, and visual brand rules'}
                       </p>
                     </div>
                   </div>
@@ -973,7 +973,7 @@ export default function App() {
                       {isChecking ? (
                         <>
                           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span>Auditing Creative with Gemini...</span>
+                          <span>Auditing Creative Asset...</span>
                         </>
                       ) : (
                         <>
@@ -1001,7 +1001,7 @@ export default function App() {
                       )}
                     </h2>
                     <p className="text-xs text-slate-500">
-                      Evaluated by {modelUsed || 'Gemini'} against {rules.length} approved brand rules.
+                      Evaluated by {modelUsed || 'Preflight Engine'} against {rules.length} approved brand rules.
                     </p>
                   </div>
                   <span className="text-xs text-slate-500">
@@ -1106,7 +1106,7 @@ export default function App() {
                       )}
                     </h2>
                     <p className="text-xs text-slate-500">
-                      Evaluated by {modelUsed || 'Gemini'} against {rules.length} configured brand rules.
+                      Evaluated by {modelUsed || 'Preflight Engine'} against {rules.length} configured brand rules.
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
@@ -1124,7 +1124,7 @@ export default function App() {
                     </div>
                     <h3 className="text-sm font-semibold text-slate-900">All brand rules satisfied!</h3>
                     <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-                      Gemini verified that your copy adheres to all active brand rules, tone guidelines, and risk policies.
+                      All copy adheres to active brand rules, tone guidelines, and risk policies.
                     </p>
                   </div>
                 ) : (
@@ -1320,7 +1320,7 @@ export default function App() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">Brand Guidelines PDF Extraction</h1>
               <p className="text-sm text-slate-500 mt-1">
-                Upload official brand guideline PDFs to automatically extract proposed compliance rules using Gemini.
+                Upload official brand guideline PDFs to automatically extract proposed compliance rules using AI.
                 Extracted rules require manual approval before becoming active.
               </p>
             </div>
@@ -1376,7 +1376,7 @@ export default function App() {
                   <div>
                     <span className="font-semibold block">Extraction Complete:</span>
                     <span>
-                      Generated <strong>{pdfExtractionSuccess.count} proposed rules</strong> from &ldquo;{pdfExtractionSuccess.filename}&rdquo; using {pdfExtractionSuccess.model}. Review and approve below.
+                      Generated <strong>{pdfExtractionSuccess.count} proposed rules</strong> from &ldquo;{pdfExtractionSuccess.filename}&rdquo;. Review and approve below.
                     </span>
                   </div>
                 </div>
@@ -1416,7 +1416,7 @@ export default function App() {
                     {isExtractingPdf ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Extracting with Gemini...</span>
+                        <span>Extracting Rules...</span>
                       </>
                     ) : (
                       <>
@@ -1740,7 +1740,7 @@ export default function App() {
               <div>
                 <h1 className="text-2xl font-bold tracking-tight text-slate-900">Brand Rules</h1>
                 <p className="text-sm text-slate-500 mt-1">
-                  Define banned keywords, mandatory terms, tone boundaries, and claims that the Gemini checker evaluates.
+                  Define banned keywords, mandatory terms, tone boundaries, and claims that the compliance checker evaluates.
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -1826,7 +1826,7 @@ export default function App() {
                       className="w-full text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
                     />
                     <span className="text-[11px] text-slate-400 mt-1 block">
-                      Supplied to Gemini to evaluate exact or semantic matches in copy and creatives.
+                      Supplied to the engine to evaluate exact or semantic matches in copy and creatives.
                     </span>
                   </div>
                 </div>
@@ -1854,7 +1854,7 @@ export default function App() {
                     rows={2}
                     value={newRuleDescription}
                     onChange={(e) => setNewRuleDescription(e.target.value)}
-                    placeholder="Provide context on why this rule exists so Gemini evaluates it accurately..."
+                    placeholder="Provide context on why this rule exists so it can be evaluated accurately..."
                     className="w-full text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-lg px-3.5 py-2.5 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 resize-none"
                   />
                 </div>
@@ -1878,7 +1878,7 @@ export default function App() {
                 <div>
                   <h2 className="text-base font-semibold text-slate-900">Active Brand Rules ({rules.length})</h2>
                   <p className="text-xs text-slate-500">
-                    These rules are sent to Gemini whenever content or creatives are audited on the Dashboard.
+                    These rules are evaluated whenever content or creatives are audited on the Dashboard.
                   </p>
                 </div>
               </div>
@@ -2064,7 +2064,7 @@ export default function App() {
                 {/* AI Findings List */}
                 <div className="space-y-3">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-700">
-                    AI-Generated Compliance Findings ({selectedReview.findings ? selectedReview.findings.length : 0})
+                    Compliance Findings ({selectedReview.findings ? selectedReview.findings.length : 0})
                   </h3>
 
                   {(!selectedReview.findings || selectedReview.findings.length === 0) ? (
