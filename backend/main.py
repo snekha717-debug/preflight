@@ -18,8 +18,11 @@ from database import init_db, save_review, get_all_reviews, get_review_by_id
 # Load environment variables from .env
 load_dotenv()
 
-# Initialize SQLite database schema
-init_db()
+# Initialize SQLite database schema safely for serverless environments
+try:
+    init_db()
+except Exception as db_init_err:
+    print(f"Warning: SQLite database initialization notice: {db_init_err}")
 
 app = FastAPI(
     title="Preflight Brand Compliance API",
@@ -27,13 +30,16 @@ app = FastAPI(
     version="1.3.0"
 )
 
-# CORS setup for frontend development
-cors_origins_env = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
-origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+# CORS setup for local and live Vercel deployments
+cors_origins_env = os.getenv("CORS_ORIGINS", "")
+if cors_origins_env.strip():
+    origins = [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+else:
+    origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins if origins else ["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -153,8 +159,8 @@ async def check_content(payload: CheckContentRequest):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
-                "Gemini API key is missing. Please add your GEMINI_API_KEY in the 'backend/.env' file "
-                "and restart the backend server. Get a free key at https://aistudio.google.com/app/apikey"
+                "Gemini API key is missing. Please add your GEMINI_API_KEY in the Vercel Project Settings "
+                "or backend/.env file and redeploy. Get a free key at https://aistudio.google.com/app/apikey"
             )
         )
 
@@ -164,7 +170,7 @@ async def check_content(payload: CheckContentRequest):
             detail="Content cannot be empty."
         )
 
-    model_name = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
     # Format the rules description for the prompt
     active_rules = [r for r in payload.brand_rules if r.active is not False]
@@ -235,15 +241,18 @@ Analyze the text and return all findings.
         created_at = datetime.now(timezone.utc).isoformat()
         review_status = "Needs Review"
 
-        save_review(
-            review_id=review_id,
-            content=payload.content,
-            purpose=payload.purpose,
-            created_at=created_at,
-            status=review_status,
-            model_used=model_name,
-            findings=[item.model_dump() for item in findings_list]
-        )
+        try:
+            save_review(
+                review_id=review_id,
+                content=payload.content,
+                purpose=payload.purpose,
+                created_at=created_at,
+                status=review_status,
+                model_used=model_name,
+                findings=[item.model_dump() for item in findings_list]
+            )
+        except Exception as db_save_err:
+            print(f"Warning: Review record could not be persisted to database: {db_save_err}")
 
         return CheckContentResponse(
             review_id=review_id,
@@ -264,7 +273,7 @@ Analyze the text and return all findings.
         if "API_KEY_INVALID" in error_msg or "403" in error_msg:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid Gemini API key. Please check the GEMINI_API_KEY value in backend/.env"
+                detail="Invalid Gemini API key. Please check the GEMINI_API_KEY value in Vercel Project Settings."
             )
         if "503" in error_msg or "UNAVAILABLE" in error_msg:
             raise HTTPException(
@@ -277,7 +286,7 @@ Analyze the text and return all findings.
         )
 
 
-# PART 2: Image Brand-Compliance Checking Endpoint
+# Image Brand-Compliance Checking Endpoint
 @app.post("/check-image", response_model=CheckImageResponse)
 async def check_image(
     file: UploadFile = File(...),
@@ -292,7 +301,7 @@ async def check_image(
     if not api_key or api_key.startswith("your_") or api_key == "":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Gemini API key is missing. Please add your GEMINI_API_KEY in the 'backend/.env' file."
+            detail="Gemini API key is missing. Please add your GEMINI_API_KEY in Vercel Project Settings."
         )
 
     # Validate file extension and format
@@ -306,7 +315,7 @@ async def check_image(
         )
 
     # Enforce 5 MB maximum file size limit
-    MAX_IMAGE_SIZE = 5 * 1024 * 1024  # 5 MB
+    MAX_IMAGE_SIZE = 5 * 1024 * 1024
     image_bytes = await file.read()
     if len(image_bytes) > MAX_IMAGE_SIZE:
         raise HTTPException(
@@ -344,7 +353,7 @@ async def check_image(
         fix = f" (Suggested alternative: '{rule.get('suggestedFix', '')}')" if rule.get('suggestedFix') else ""
         rules_text += f"{idx}. [{rule.get('type', 'General')}] {rule.get('name', 'Rule')}{target}: {rule.get('description', '')}{fix} [Severity: {rule.get('severity', 'Medium')}]\n"
 
-    model_name = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
     system_instruction = (
         "You are an expert AI brand compliance and creative design auditor for Preflight.\n"
@@ -410,24 +419,27 @@ Inspect the visual creative, extract any problematic text or design elements, an
         review_status = "Needs Review"
 
         # Persist to SQLite reviews table
-        save_review(
-            review_id=review_id,
-            content=f"[Image Creative]: {filename}",
-            purpose=purpose or "Image Creative Review",
-            created_at=created_at,
-            status=review_status,
-            model_used=model_name,
-            findings=[
-                {
-                    "problematic_text": item.evidence,
-                    "category": item.category,
-                    "severity": item.severity,
-                    "explanation": item.explanation,
-                    "suggested_rewrite": item.suggested_correction or "Review creative asset"
-                }
-                for item in findings_list
-            ]
-        )
+        try:
+            save_review(
+                review_id=review_id,
+                content=f"[Image Creative]: {filename}",
+                purpose=purpose or "Image Creative Review",
+                created_at=created_at,
+                status=review_status,
+                model_used=model_name,
+                findings=[
+                    {
+                        "problematic_text": item.evidence,
+                        "category": item.category,
+                        "severity": item.severity,
+                        "explanation": item.explanation,
+                        "suggested_rewrite": item.suggested_correction or "Review creative asset"
+                    }
+                    for item in findings_list
+                ]
+            )
+        except Exception as db_save_err:
+            print(f"Warning: Review record could not be persisted to database: {db_save_err}")
 
         return CheckImageResponse(
             review_id=review_id,
@@ -449,7 +461,7 @@ Inspect the visual creative, extract any problematic text or design elements, an
         if "API_KEY_INVALID" in error_msg or "403" in error_msg:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid Gemini API key. Please check the GEMINI_API_KEY value in backend/.env"
+                detail="Invalid Gemini API key. Please check the GEMINI_API_KEY value in Vercel Project Settings."
             )
         if "503" in error_msg or "UNAVAILABLE" in error_msg:
             raise HTTPException(
@@ -474,7 +486,7 @@ async def extract_brand_guidelines(file: UploadFile = File(...)):
     if not api_key or api_key.startswith("your_") or api_key == "":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Gemini API key is missing. Please add your GEMINI_API_KEY in the 'backend/.env' file."
+            detail="Gemini API key is missing. Please add your GEMINI_API_KEY in Vercel Project Settings."
         )
 
     filename = file.filename or "uploaded_guidelines.pdf"
@@ -484,7 +496,7 @@ async def extract_brand_guidelines(file: UploadFile = File(...)):
             detail="Invalid file format. Only PDF files (.pdf) are allowed."
         )
 
-    MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 Megabytes
+    MAX_FILE_SIZE = 5 * 1024 * 1024
     content_bytes = await file.read()
     if len(content_bytes) > MAX_FILE_SIZE:
         raise HTTPException(
@@ -530,7 +542,7 @@ async def extract_brand_guidelines(file: UploadFile = File(...)):
             )
         )
 
-    model_name = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
     system_instruction = (
         "You are a strict, secure Brand Governance AI parser for Preflight.\n"
@@ -616,7 +628,7 @@ Extract all discrete rules found in the document above.
         if "API_KEY_INVALID" in error_msg or "403" in error_msg:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid Gemini API key. Please check the GEMINI_API_KEY value in backend/.env"
+                detail="Invalid Gemini API key. Please check the GEMINI_API_KEY value in Vercel Project Settings."
             )
         if "503" in error_msg or "UNAVAILABLE" in error_msg:
             raise HTTPException(
