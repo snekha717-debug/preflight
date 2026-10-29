@@ -306,12 +306,12 @@ async def check_image(
 
     # Validate file extension and format
     filename = file.filename or "creative.png"
-    allowed_exts = [".png", ".jpg", ".jpeg"]
+    allowed_exts = [".png", ".jpg", ".jpeg", ".webp"]
     ext = os.path.splitext(filename.lower())[1]
     if ext not in allowed_exts:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported image format: '{ext}'. Only PNG, JPG, and JPEG images are supported."
+            detail=f"Unsupported image format: '{ext}'. Only PNG, JPG, JPEG, and WEBP images are supported."
         )
 
     # Enforce 5 MB maximum file size limit
@@ -333,7 +333,7 @@ async def check_image(
     try:
         with Image.open(io.BytesIO(image_bytes)) as pil_img:
             pil_img.verify()
-            mime_type = "image/png" if ext == ".png" else "image/jpeg"
+            mime_type = "image/png" if ext == ".png" else ("image/webp" if ext == ".webp" else "image/jpeg")
     except Exception as img_err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
